@@ -1,0 +1,47 @@
+name: Build APK
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies and Android SDK
+        run: |
+          sudo apt update
+          sudo apt install -y python3 python3-pip git zip unzip openjdk-17-jdk wget
+          pip install --upgrade pip
+          pip install cython buildozer kivy
+
+          # تحميل Android command line tools
+          wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O cmdline-tools.zip
+          unzip cmdline-tools.zip -d $HOME/.buildozer/android/
+          mkdir -p $HOME/.buildozer/android/cmdline-tools/latest
+          mv $HOME/.buildozer/android/cmdline-tools/cmdline-tools/* $HOME/.buildozer/android/cmdline-tools/latest/
+
+          # إعداد المتغيرات البيئية
+          export ANDROID_HOME=$HOME/.buildozer/android
+          export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH
+
+          # قبول كل تراخيص SDK وتثبيت build-tools وplatforms
+          yes | sdkmanager --licenses
+          sdkmanager "platform-tools" "platforms;android-33" "build-tools;36.0.0"
+
+      - name: Build APK
+        run: |
+          cd $GITHUB_WORKSPACE
+          ls
+          buildozer -v android debug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: TestApp-APK
+          path: bin/*.apk
